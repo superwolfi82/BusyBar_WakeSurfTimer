@@ -13,7 +13,7 @@
 //   surf time  - time the rider was actually up (pauses excluded)
 //   clock time - wall time from ride start to ride end (pauses included)
 
-var APP = "app.wakesurf.timer";
+var APP = "io.github.superwolfi82.wakesurf";
 var API = "http://localhost/api/";
 // JS apps are sandboxed: /ext/data maps to /ext/apps_data/js_apps/<app id>/
 var HISTORY_PATH = "/ext/data/wakesurf_timer_history.json";

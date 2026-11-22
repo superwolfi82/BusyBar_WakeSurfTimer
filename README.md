@@ -133,17 +133,23 @@ Then download `/ext/log.txt` with `storage/read` (same as the history file below
 
 ## Install / update
 
+The easiest way is the BUSY app catalog. To install from source instead:
+
 App installs only work over **USB**: over Wi-Fi the bar refuses them (403 Forbidden).
 
-1. Connect the BUSY Bar to the PC with a USB-C cable (it is then reachable at `10.0.4.20`).
-2. In this folder run:
+1. Install [Node.js](https://nodejs.org) 24 or newer.
+2. Connect the BUSY Bar to the PC with a USB-C cable (it is then reachable at `10.0.4.20`).
+3. In this folder run:
 
 ```powershell
 .\deploy.ps1
 ```
 
-This packs `src\app.wakesurf.timer` into `dist\app.wakesurf.timer.tgz`, installs it and starts it.
+This builds `src\` with `busy-cli` into `dist\io.github.superwolfi82.wakesurf.tgz`, installs it and starts it.
 Your ride history is kept when you update.
+(Versions before 1.4.0 used the app ID `app.wakesurf.timer`; their history stays with that old app.)
+
+Without PowerShell, `npm ci` then `npm run build` and `npm run app:install` do the same.
 
 Other options:
 
@@ -163,7 +169,7 @@ After installing, the app also appears in the bar's app menu, so a PC is not nee
 
 ## Where the history is stored
 
-On the bar, in `/ext/apps_data/js_apps/app.wakesurf.timer/wakesurf_timer_history.json`
+On the bar, in `/ext/apps_data/js_apps/io.github.superwolfi82.wakesurf/wakesurf_timer_history.json`
 (inside the app the path is `/ext/data/wakesurf_timer_history.json`). Example entry:
 
 ```json
@@ -173,7 +179,7 @@ On the bar, in `/ext/apps_data/js_apps/app.wakesurf.timer/wakesurf_timer_history
 `t` = surf time in ms, `c` = clock time in ms, `f` = falls. To read it over USB:
 
 ```powershell
-Invoke-WebRequest "http://10.0.4.20/api/storage/read?path=/ext/apps_data/js_apps/app.wakesurf.timer/wakesurf_timer_history.json" -UseBasicParsing | Select-Object -ExpandProperty Content
+Invoke-WebRequest "http://10.0.4.20/api/storage/read?path=/ext/apps_data/js_apps/io.github.superwolfi82.wakesurf/wakesurf_timer_history.json" -UseBasicParsing | Select-Object -ExpandProperty Content
 ```
 
 ## App icon
@@ -197,16 +203,17 @@ The pixel maps live in [tools/make-icons.ps1](tools/make-icons.ps1). To change t
 ## Project files
 
 ```
-src/app.wakesurf.timer/
-  appmeta/manifest.json    app id, name, version (1.3.0)
+src/
+  appmeta/manifest.json         app id, name, version (1.4.0)
   appmeta/icon_front_8x8.png    app icon, front display / app menu
   appmeta/icon_back_11x11.png   app icon, back display
-  scripts/main.js          the whole app (plain JavaScript, runs on the bar's JerryScript engine)
-deploy.ps1                 package + install + launch over USB
-tools/make-icons.ps1       generates the two icon PNGs from pixel maps
-dist/                      built package (created by deploy.ps1)
-docs/screenshots/          display screenshots used in this README (taken from the bar)
+  main.js                       the whole app (plain JavaScript, runs on the bar's JerryScript engine)
+package.json, package-lock.json build tool (@busy-app/cli)
+deploy.ps1                      build + install + launch over USB
+tools/make-icons.ps1            generates the two icon PNGs from pixel maps
+dist/                           built package (created by the build, not committed)
+screenshots/                    72x16 / 160x80 screenshots for the app catalog
+docs/screenshots/               enlarged display screenshots used in this README (taken from the bar)
 ```
 
 The app only uses the bar's local HTTP API: `display/draw`, `storage/read|write`, `time`.
-No Node.js or other tools are needed on the PC.

@@ -1,0 +1,10 @@
+{
+  "format_version": 1,
+  "id": "io.github.superwolfi82.wakesurf",
+  "name": "Wakesurf Timer",
+  "version": "1.4.0",
+  "api_version": "27.12.0",
+  "description": "Ride timer for boat captains: wakesurf, wakeboard, waterski. Pause on falls, keeps the last 20 rides.",
+  "author": "superwolfi82",
+  "heap_size_kib": 128
+}

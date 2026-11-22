@@ -3,7 +3,7 @@
   Package, install and launch the Wakesurf Timer app on a BUSY Bar.
 
 .DESCRIPTION
-  Builds dist\app.wakesurf.timer.tgz from src\app.wakesurf.timer and installs it through
+  Builds dist\<app id>.tgz from src\ with busy-cli (needs Node.js) and installs it through
   the device HTTP API (apps/stage -> apps/install -> apps/launch).
 
   The firmware marks the app install endpoints as local-only, so connect the BUSY Bar
@@ -24,9 +24,8 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
-$AppId = "app.wakesurf.timer"
+$AppId = "io.github.superwolfi82.wakesurf"
 $Root = $PSScriptRoot
-$Src = Join-Path $Root "src"
 $Dist = Join-Path $Root "dist"
 $Pkg = Join-Path $Dist "$AppId.tgz"
 $Base = "http://$Addr/api"
@@ -49,10 +48,13 @@ if ($Quit) {
 if (-not $Launch) {
     New-Item -ItemType Directory -Force $Dist | Out-Null
     if (Test-Path $Pkg) { Remove-Item $Pkg -Force -Confirm:$false }
-    # package root must be the app id folder: app.wakesurf.timer/appmeta/..., app.wakesurf.timer/scripts/main.js
-    # plain ustar format: Windows bsdtar otherwise adds PaxHeader entries the bar warns about
-    & tar --format ustar -czf $Pkg -C $Src $AppId
-    if ($LASTEXITCODE -ne 0) { throw "tar failed" }
+    # same build the app catalog uses: src/main.js + src/appmeta -> dist/<id>.tgz
+    Push-Location $Root
+    try {
+        if (-not (Test-Path (Join-Path $Root "node_modules"))) { & npm ci --no-fund --no-audit; if ($LASTEXITCODE -ne 0) { throw "npm ci failed" } }
+        & npx busy-cli build
+        if ($LASTEXITCODE -ne 0) { throw "busy-cli build failed" }
+    } finally { Pop-Location }
     Write-Host "Packaged $Pkg ($((Get-Item $Pkg).Length) bytes)"
     if ($PackageOnly) { return }
 
