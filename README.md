@@ -37,7 +37,7 @@ https://busy.app/
    ![App menu entry with the wave icon](docs/screenshots/front-app-menu.png)
 
 
-   The front shows `Wakesurf / PRESS START`.
+   The front shows `WAKESURF / PRESS START`.
 2. **Press START** to begin the session. The display shows `READY` and the number of the next ride.
 3. **Rider is up: press START.** The clock runs, the front shows **SURF** in green.
 4. **Rider falls: press START.** The clock stops, the front shows **PAUSE** in yellow, the fall counter goes up (`F1`, `F2`, …).
@@ -69,7 +69,7 @@ Holding BACK always force-quits the app (built into the bar); a running ride is 
 
 ### What the displays show
 
-**Front (72×16, colour)**: surf time on the left; state, ride number and falls on the right.
+**Front (72×16, colour)**: surf time on the left (9 dots tall); state, ride number and falls on the right (7 dots tall). No text on the front is smaller than 7 dots, so it stays readable from the helm.
 
 | State | Front display |
 |---|---|
@@ -135,9 +135,22 @@ Then download `/ext/log.txt` with `storage/read` (same as the history file below
 
 ## Install / update
 
-The easiest way is the BUSY app catalog. To install from source instead:
+The easiest way is the BUSY app catalog. There are two other ways: upload the release file in the bar's web interface, or build from source.
 
 App installs only work over **USB**: over Wi-Fi the bar refuses them (403 Forbidden).
+
+### Option A: upload the release file (no tools needed)
+
+1. Download `io.github.superwolfi82.wakesurf.tgz` from the [latest release](https://github.com/superwolfi82/BusyBar_WakeSurfTimer/releases/latest)
+   ([direct link](https://github.com/superwolfi82/BusyBar_WakeSurfTimer/releases/latest/download/io.github.superwolfi82.wakesurf.tgz)).
+2. Connect the BUSY Bar to the PC with a USB-C cable.
+3. Open [http://10.0.4.20/](http://10.0.4.20/) in a browser and go to **Apps**.
+4. Click **Add app**, then drop the `.tgz` file on the *Upload app file* box (or click **Select file**).
+5. *Wakesurf Timer* now shows up under *Your apps* and in the bar's app menu.
+
+To update, upload the newer `.tgz` the same way. Your ride history is kept.
+
+### Option B: build from source
 
 1. Install [Node.js](https://nodejs.org) 24 or newer.
 2. Connect the BUSY Bar to the PC with a USB-C cable (it is then reachable at `10.0.4.20`).
@@ -168,6 +181,21 @@ Other options:
 ```
 
 After installing, the app also appears in the bar's app menu, so a PC is not needed on the boat.
+
+### Making a release
+
+Bump the version in `src/appmeta/manifest.json` and `package.json`, commit, then push a matching tag:
+
+```powershell
+git tag v1.5.0
+```
+
+```powershell
+git push origin v1.5.0
+```
+
+The [release workflow](.github/workflows/release.yml) builds the `.tgz` with `busy-cli` and attaches it to a new GitHub release.
+It stops if the tag does not match the version in both files.
 
 ## Where the history is stored
 
@@ -206,13 +234,14 @@ The pixel maps live in [tools/make-icons.ps1](tools/make-icons.ps1). To change t
 
 ```
 src/
-  appmeta/manifest.json         app id, name, version (1.4.0)
+  appmeta/manifest.json         app id, name, version (1.5.0)
   appmeta/icon_front_8x8.png    app icon, front display / app menu
   appmeta/icon_back_11x11.png   app icon, back display
   main.js                       the whole app (plain JavaScript, runs on the bar's JerryScript engine)
 package.json, package-lock.json build tool (@busy-app/cli)
 deploy.ps1                      build + install + launch over USB
 tools/make-icons.ps1            generates the two icon PNGs from pixel maps
+.github/workflows/release.yml   on a v* tag: builds the .tgz and attaches it to a GitHub release
 dist/                           built package (created by the build, not committed)
 screenshots/                    72x16 / 160x80 screenshots for the app catalog
 docs/screenshots/               enlarged display screenshots used in this README (taken from the bar)

@@ -203,8 +203,10 @@ function lastRidesLine() {
 
 function buildIdle() {
     var el = [];
-    el.push(text("f0", "front", 36, 0, "top_mid", "Wakesurf", "small", C_WHITE));
-    el.push(text("f1", "front", 36, 16, "bottom_mid", "PRESS START", "tiny", C_BLUE));
+    // front 72x16: two rows in the 7-dot "normal" font, glyph rows 0-6 and 9-15
+    // (its text box has 2 px padding above the glyphs, hence y -2 and 7)
+    el.push(text("f0", "front", 36, -2, "top_mid", "WAKESURF", "normal", C_WHITE));
+    el.push(text("f1", "front", 36, 7, "top_mid", "PRESS START", "normal", C_BLUE));
 
     el.push(text("b0", "back", BACK_MID, 2, "top_mid", "WAKESURF TIMER", "bold", C_WHITE));
     el.push(text("b1", "back", BACK_MID, 24, "top_mid", "START  new session", "small", C_WHITE));
@@ -221,11 +223,14 @@ function buildSession() {
     var label = state === S_RIDING ? "SURF" : state === S_PAUSED ? "PAUSE" : "READY";
     var timeCol = state === S_READY ? C_GREY : (state === S_PAUSED ? C_YELLOW : C_WHITE);
     var sub = "#" + nextRideNo + (falls > 0 ? " F" + falls : "");
+    // the 9-dot time ends at x 29, so the 6 px/char sub line fits 7 characters
+    if (sub.length > 7) sub = sub.replace(" ", "");
 
-    // front 72x16
+    // front 72x16: 9-dot time on the left; right column has the 7-dot state label
+    // (glyph rows 0-6) above the 7-dot ride number / falls (glyph rows 9-15)
     el.push(text("f0", "front", 1, 8, "mid_left", t, "large", timeCol));
-    el.push(text("f1", "front", 71, 0, "top_right", label, "bold", col));
-    el.push(text("f2", "front", 71, 16, "bottom_right", sub, "tiny", C_GREY));
+    el.push(text("f1", "front", 71, -2, "top_right", label, "bold", col));
+    el.push(text("f2", "front", 71, 7, "top_right", sub, "normal", C_GREY));
 
     // back 160x80
     var stateLine, info, hint;
