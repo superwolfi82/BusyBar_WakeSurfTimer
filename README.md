@@ -86,7 +86,9 @@ Holding BACK always force-quits the app (built into the bar); a running ride is 
 
 Turn the wheel on the start screen or on `READY` to open the history.
 
-- **Front:** surf time of the selected ride, date on top, start time below.
+- **Front:** bottom row: surf time (cyan, left) and clock time (blue, right).
+  Top row: alternates every 2 s between `RIDE #10` and the start date/time `11/22 17:13`.
+  All text uses the 7-dot font so it stays readable from the helm.
 - **Back:** table of 5 rides around the selection: `RIDE  DATE START  SURF  CLOCK  F`.
   The selected ride has a frame; `3/20` at the bottom shows the position.
 

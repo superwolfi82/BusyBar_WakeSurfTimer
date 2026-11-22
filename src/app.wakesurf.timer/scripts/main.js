@@ -44,6 +44,9 @@ var S_PAUSED = "paused";   // surfer fell / rope dropped, clock frozen
 var state = S_IDLE;
 var view = "timer";        // "timer" | "history"
 var histIndex = 0;
+var histPage = 0;          // front top row in history: 0 = ride number, 1 = start date/time
+var histTimer = null;
+var HIST_PAGE_MS = 2000;
 
 var sessionStart = 0;      // ms
 var rideStart = 0;         // ms when START was first pressed for this ride
@@ -259,18 +262,22 @@ var ROWS = 5, ROW_Y0 = 10, ROW_H = 11;
 function buildHistory() {
     var el = [];
     if (!history.length) {
-        el.push(text("f0", "front", 36, 8, "center", "No rides yet", "small", C_GREY));
+        el.push(text("f0", "front", 36, 8, "center", "NO RIDES", "normal", C_GREY));
         el.push(text("b0", "back", BACK_MID, 2, "top_mid", "RIDE HISTORY", "bold", C_WHITE));
         el.push(text("b1", "back", BACK_MID, 40, "center", "No rides yet", "normal", C_GREY));
         return el;
     }
     var e = history[histIndex];
-    var stamp = e.d || "--/-- --:--";
 
-    // front: surf time + date / start time of the selected ride
-    el.push(text("f0", "front", 1, 8, "mid_left", fmt(e.t), "large", C_CYAN));
-    el.push(text("f1", "front", 71, 0, "top_right", stamp.substring(0, 5), "tiny", C_WHITE));
-    el.push(text("f2", "front", 71, 16, "bottom_right", stamp.substring(6), "tiny", C_BLUE));
+    // front 72x16: two rows in the 7-dot "normal" font (6 px per character).
+    // Its text box has 2 px padding above and below the glyphs, hence y -2 and 7:
+    // glyph rows 0-6 and 9-15. Everything at once would be ~85 px wide, so the top
+    // row alternates between ride number and start date/time; surf | clock stay put.
+    var first = histPage === 0;
+    el.push(text("f0", "front", first ? 0 : 71, -2, first ? "top_left" : "top_right",
+        first ? "RIDE #" + e.n : (e.d || "--/-- --:--"), "normal", first ? C_WHITE : C_YELLOW));
+    el.push(text("f1", "front", 0, 7, "top_left", fmt(e.t), "normal", C_CYAN));
+    el.push(text("f2", "front", 71, 7, "top_right", fmt(e.c || e.t), "normal", C_BLUE));
 
     // back: table, 5 rows around the selection
     el.push(text("h0", "back", COL_NO, 1, "top_left", "RIDE", "tiny", C_GREY));
@@ -441,19 +448,44 @@ function endSession() {
     render(C_RED);
 }
 
+// flip the front top row between ride number and start date/time
+function restartHistPages() {
+    stopHistPages();
+    histPage = 0;
+    histTimer = setTimeout(function flip() {
+        if (view !== "history") {
+            histTimer = null;
+            return;
+        }
+        histPage = 1 - histPage;
+        render();
+        histTimer = setTimeout(flip, HIST_PAGE_MS);
+    }, HIST_PAGE_MS);
+}
+
+function stopHistPages() {
+    if (histTimer !== null) {
+        clearTimeout(histTimer);
+        histTimer = null;
+    }
+}
+
 function openHistory() {
     view = "history";
     histIndex = 0;
+    restartHistPages();
     render();
 }
 
 function closeHistory() {
     view = "timer";
+    stopHistPages();
     render();
 }
 
 function quit() {
     stopTick();
+    stopHistPages();
     if (unbind) unbind();
     unbind = null;
     api("display/draw?application_name=" + APP, { method: "DELETE" });
@@ -470,6 +502,7 @@ function onInput(ev) {
         }
         if (history.length) {
             histIndex = Math.max(0, Math.min(history.length - 1, histIndex + (ev.delta || 0)));
+            restartHistPages(); // show the new ride's number first
             render();
         }
         return;
@@ -481,6 +514,7 @@ function onInput(ev) {
         if (ev.key === "ok" || ev.key === "back") closeHistory();
         else if (ev.key === "start" && ev.action === "short") {
             view = "timer";
+            stopHistPages();
             if (state === S_IDLE) startSession();
             else startOrResume();
         }
