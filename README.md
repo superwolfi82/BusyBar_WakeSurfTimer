@@ -73,7 +73,7 @@ Holding BACK always force-quits the app (built into the bar); a running ride is 
 
 | State | Front display |
 |---|---|
-| **READY**: waiting for the next rider (grey clock at 00:00, ride #11 next) | ![Front display: READY](docs/screenshots/front-ready.png) |
+| **READY**: waiting for the next rider (grey clock at 00:00, ride #8 next) | ![Front display: READY](docs/screenshots/front-ready.png) |
 | **SURF**: rider is up, clock running (green) | ![Front display: SURF](docs/screenshots/front-surf.png) |
 | **PAUSE**: rider fell, clock stopped (yellow), `F1` = 1 fall | ![Front display: PAUSE](docs/screenshots/front-pause.png) |
 
