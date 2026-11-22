@@ -197,6 +197,86 @@ git push origin v1.5.0
 The [release workflow](.github/workflows/release.yml) builds the `.tgz` with `busy-cli` and attaches it to a new GitHub release.
 It stops if the tag does not match the version in both files.
 
+### Publishing an update to the BUSY app catalog
+
+The catalog does **not** watch GitHub releases or tags. It builds exactly the commit named in
+`commit_sha` of the catalog entry
+[`applications/io.github.superwolfi82.wakesurf/manifest.yml`](https://github.com/busy-app/busy-apps-catalog/blob/main/applications/io.github.superwolfi82.wakesurf/manifest.yml).
+Every new version needs a new pull request to [busy-app/busy-apps-catalog](https://github.com/busy-app/busy-apps-catalog)
+that changes that one file. Full rules: the catalog's [CONTRIBUTING.md](https://github.com/busy-app/busy-apps-catalog/blob/main/CONTRIBUTING.md).
+
+**Before you start**
+
+- The new `version` in `src/appmeta/manifest.json` must be **higher** than the version in the catalog, otherwise the check fails.
+- Keep the app ID `io.github.superwolfi82.wakesurf` and this repository. The catalog only accepts updates from the repo the app was first published from.
+- If the display looks different now, replace the PNGs in `screenshots/` (front 72×16, back 160×80, taken from the bar) before the release commit.
+  The catalog only shows new description and screenshots together with a new version.
+
+**Steps** (needs [GitHub CLI](https://cli.github.com) `gh`, logged in as superwolfi82; example for v1.6.0)
+
+1. Make the release as described above (version bump, commit, push, tag `v1.6.0`).
+2. Get the full commit SHA of the release (the catalog takes no tag or branch names):
+
+   ```powershell
+   git rev-parse "v1.6.0^{commit}"
+   ```
+
+3. Get a fresh copy of the catalog from your fork (`superwolfi82/busy-apps-catalog`; the first time run `gh repo fork busy-app/busy-apps-catalog --clone=false`):
+
+   ```powershell
+   gh repo sync superwolfi82/busy-apps-catalog
+   ```
+
+   ```powershell
+   gh repo clone superwolfi82/busy-apps-catalog $env:TEMP\busy-apps-catalog
+   ```
+
+   ```powershell
+   cd $env:TEMP\busy-apps-catalog; git checkout -b update-wakesurf-1.6.0
+   ```
+
+4. Edit `applications/io.github.superwolfi82.wakesurf/manifest.yml` and change **only**:
+   - `commit_sha:` the 40-character SHA from step 2, with the tag as a comment: `commit_sha: <40 characters>  # v1.6.0`
+   - `changelog:` what's new in this version (10 to 4000 characters, written inline, no file reference)
+
+   Leave `category` alone; later changes to it are ignored.
+
+5. Commit, push and open the pull request:
+
+   ```powershell
+   git commit -am "Update io.github.superwolfi82.wakesurf to 1.6.0"
+   ```
+
+   ```powershell
+   git push -u origin update-wakesurf-1.6.0
+   ```
+
+   ```powershell
+   gh pr create --repo busy-app/busy-apps-catalog --fill --web
+   ```
+
+   `--web` opens the PR form in the browser: fill in the author checklist (tick *I'm the author of the app*,
+   otherwise the check fails) and the *AI usage* part, then create the PR.
+
+6. The automatic checks run on the PR; failures are listed there. Fix them with another commit on the same branch
+   (editing only the PR text does not rerun the checks). A moderator then reviews, usually within 1–2 business days.
+   After the merge the catalog builds the commit from step 2 and publishes it, and bars get the update.
+
+**Optional: check locally before opening the PR** (Python 3.13, run in the catalog folder):
+
+```powershell
+python -m pip install -r tools/requirements.txt
+```
+
+```powershell
+python -m tools.validate_manifest applications/io.github.superwolfi82.wakesurf/manifest.yml
+```
+
+This checks the catalog entry only (format, lengths, category). The build itself is checked by the PR.
+
+**Removing the app from the catalog:** a PR that deletes the whole folder `applications/io.github.superwolfi82.wakesurf/`
+and nothing else. The ID then stays reserved and cannot be reused without asking the catalog maintainers.
+
 ## Where the history is stored
 
 On the bar, in `/ext/apps_data/js_apps/io.github.superwolfi82.wakesurf/wakesurf_timer_history.json`
