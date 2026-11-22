@@ -16,6 +16,8 @@ When the ride is over, one button press saves it. The bar keeps the **last 20 ri
 The difference between clock time and surf time is the time spent picking the rider up after falls.
 
 ---
+## Required Hardware: 
+https://busy.app/
 
 ## User manual
 
