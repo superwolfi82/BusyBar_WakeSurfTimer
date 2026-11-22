@@ -50,7 +50,8 @@ if (-not $Launch) {
     New-Item -ItemType Directory -Force $Dist | Out-Null
     if (Test-Path $Pkg) { Remove-Item $Pkg -Force -Confirm:$false }
     # package root must be the app id folder: app.wakesurf.timer/appmeta/..., app.wakesurf.timer/scripts/main.js
-    & tar -czf $Pkg -C $Src $AppId
+    # plain ustar format: Windows bsdtar otherwise adds PaxHeader entries the bar warns about
+    & tar --format ustar -czf $Pkg -C $Src $AppId
     if ($LASTEXITCODE -ne 0) { throw "tar failed" }
     Write-Host "Packaged $Pkg ($((Get-Item $Pkg).Length) bytes)"
     if ($PackageOnly) { return }
@@ -61,6 +62,9 @@ if (-not $Launch) {
     Write-Host "Staged $($stage.staged.id) $($stage.staged.version)"
     Invoke-Busy Post "apps/install?install_key=$($stage.install_key)" | Out-Null
     Write-Host "Installed."
+    # installing sometimes restarts the app by itself; give that start time to finish before
+    # quitting, otherwise the bar logs "SyntaxError: Interrupted"
+    Start-Sleep -Seconds 3
 }
 
 try { Invoke-Busy Post "apps/quit" | Out-Null } catch { }  # no app running is fine

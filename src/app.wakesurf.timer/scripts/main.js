@@ -3,7 +3,8 @@
 //
 // Controls
 //   START  short : start session -> start ride -> pause (fall) -> resume
-//   OK     short : finish current ride (saved to history) / open-close history
+//   START  long  : finish current ride (saved to history)
+//   OK     short : finish current ride too / open-close history
 //   OK     long  : end the session
 //   BACK   short : close history / end session (when no ride is running) / quit app
 //   ENCODER      : scroll history (opens it when no ride is running)
@@ -102,16 +103,15 @@ function parseLocal(iso) {
 }
 
 function syncWallClock() {
-    return fetch(API + "time")
-        .then(function (r) { return r.ok ? r.text() : null; })
-        .then(function (txt) {
-            if (!txt) return;
-            var ms = parseLocal(JSON.parse(txt).timestamp || "");
+    return api("time").then(function (res) {
+        if (!res.ok || !res.text) return;
+        try {
+            var ms = parseLocal(JSON.parse(res.text).timestamp || "");
             if (ms !== null) wallBase = { ms: ms, at: now() };
-        })
-        .catch(function (e) {
-            console.log("time sync failed:", e);
-        });
+        } catch (e) {
+            console.log("time parse failed: " + String(e));
+        }
+    });
 }
 
 function stampAt(t) {
@@ -121,35 +121,55 @@ function stampAt(t) {
         pad2(d.getUTCHours()) + ":" + pad2(d.getUTCMinutes());
 }
 
+// ---- HTTP --------------------------------------------------------------------
+//
+// All requests to the bar go through one queue: only one fetch is in flight at a time and
+// each response body is read completely before the next request starts. Overlapping
+// fetches (e.g. saving the history while the screen redraws) crashed the JS engine with
+// "jerryscript fatal error 120" on firmware 1.4.1.
+
+var apiQueue = Promise.resolve();
+
+function api(path, opts) {
+    var p = apiQueue.then(function () {
+        return fetch(API + path, opts || {}).then(function (r) {
+            return r.text().then(
+                function (t) { return { ok: r.ok, status: r.status, text: t }; },
+                function () { return { ok: r.ok, status: r.status, text: "" }; }
+            );
+        });
+    }).catch(function (e) {
+        console.log("api " + path + " failed: " + String(e));
+        return { ok: false, status: 0, text: "" };
+    });
+    apiQueue = p;
+    return p;
+}
+
 // ---- persistence -------------------------------------------------------------
 
 function loadHistory() {
-    return fetch(API + "storage/read?path=" + HISTORY_PATH)
-        .then(function (r) {
-            if (!r.ok) return null;
-            return r.text();
-        })
-        .then(function (txt) {
-            if (!txt) return;
-            var data = JSON.parse(txt);
+    return api("storage/read?path=" + HISTORY_PATH).then(function (res) {
+        if (!res.ok || !res.text) return;
+        try {
+            var data = JSON.parse(res.text);
             if (data && data.rides && data.rides.length !== undefined) {
                 history = data.rides.slice(0, HISTORY_MAX);
                 nextRideNo = data.next || (history.length ? history[0].n + 1 : 1);
             }
-        })
-        .catch(function (e) {
-            console.log("history load failed:", e);
-        });
+        } catch (e) {
+            console.log("history parse failed: " + String(e));
+        }
+    });
 }
 
 function saveHistory() {
-    var body = JSON.stringify({ next: nextRideNo, rides: history });
-    return fetch(API + "storage/write?path=" + HISTORY_PATH, {
+    return api("storage/write?path=" + HISTORY_PATH, {
         method: "POST",
         headers: { "Content-Type": "application/octet-stream" },
-        body: body
-    }).catch(function (e) {
-        console.log("history save failed:", e);
+        body: JSON.stringify({ next: nextRideNo, rides: history })
+    }).then(function (res) {
+        if (!res.ok) console.log("history save failed: " + res.status + " " + res.text);
     });
 }
 
@@ -209,17 +229,17 @@ function buildSession() {
     if (state === S_RIDING) {
         stateLine = "RIDING";
         info = "CLOCK " + fmt(clockMs()) + "   FALLS " + falls;
-        hint = "START: PAUSE    OK: FINISH RIDE";
+        hint = "START: PAUSE    HOLD START: FINISH";
     } else if (state === S_PAUSED) {
         stateLine = "PAUSED";
         info = "CLOCK " + fmt(clockMs()) + "   FALLS " + falls;
-        hint = "START: RESUME    OK: FINISH RIDE";
+        hint = "START: RESUME   HOLD START: FINISH";
     } else {
         stateLine = "READY FOR RIDER";
         info = history.length
             ? "LAST #" + history[0].n + "  SURF " + fmt(history[0].t) + "  CLOCK " + fmt(history[0].c || history[0].t)
             : "Press START when the rider is up";
-        hint = "START: GO   OK: HISTORY   BACK: END";
+        hint = "START: GO   ROTATE: HISTORY   BACK: END";
     }
     el.push(text("b0", "back", 4, 2, "top_left", "RIDE #" + nextRideNo, "small", C_WHITE));
     el.push(text("b1", "back", BACK_RIGHT, 2, "top_right",
@@ -279,12 +299,11 @@ function buildHistory() {
         el.push(text(r + "f", "back", BACK_RIGHT, y, "top_right", "" + h.f, "small", C_WHITE));
     }
     el.push(text("hint", "back", BACK_MID, 79, "bottom_mid",
-        "ROTATE: SCROLL  OK: CLOSE  " + (histIndex + 1) + "/" + history.length,
+        "ROTATE: SCROLL  BACK: CLOSE  " + (histIndex + 1) + "/" + history.length,
         "tiny", C_GREY));
     return el;
 }
 
-var drawnIds = [];
 var drawing = false;
 var drawPending = false;
 var pendingLed = null;
@@ -302,28 +321,16 @@ function render(ledColor) {
     else if (state === S_IDLE) elements = buildIdle();
     else elements = buildSession();
 
-    var ids = elements.map(function (e) { return e.id; });
-    var removed = drawnIds.filter(function (id) { return ids.indexOf(id) < 0; });
-    drawnIds = ids;
-
+    // a draw POST replaces everything this app had on screen, so elements of the
+    // previous view disappear without a separate DELETE
     var payload = { application_name: APP, elements: elements };
     if (pendingLed) {
         payload.led_notification_color = pendingLed;
         pendingLed = null;
     }
 
-    var p = Promise.resolve();
-    if (removed.length) {
-        p = fetch(API + "display/draw", {
-            method: "DELETE",
-            body: JSON.stringify({ application_name: APP, element_ids: removed })
-        }).catch(function () {});
-    }
-    p.then(function () {
-        return fetch(API + "display/draw", { method: "POST", body: JSON.stringify(payload) });
-    }).catch(function (e) {
-        console.log("draw failed:", e);
-    }).then(function () {
+    api("display/draw", { method: "POST", body: JSON.stringify(payload) }).then(function (res) {
+        if (!res.ok) console.log("draw failed: " + res.status + " " + res.text);
         drawing = false;
         if (drawPending) {
             drawPending = false;
@@ -449,7 +456,7 @@ function quit() {
     stopTick();
     if (unbind) unbind();
     unbind = null;
-    fetch(API + "display/draw?application_name=" + APP, { method: "DELETE" }).catch(function () {});
+    api("display/draw?application_name=" + APP, { method: "DELETE" });
 }
 
 // ---- input -------------------------------------------------------------------------
@@ -484,6 +491,14 @@ function onInput(ev) {
         if (state === S_IDLE) startSession();
         else if (state === S_READY || state === S_PAUSED) startOrResume();
         else if (state === S_RIDING) pause();
+        return;
+    }
+
+    // Hold START = finish the ride. OK does the same, but on a bar connected to Home Assistant
+    // the BUSY Bar integration also reacts to OK and covers the screen with its dashboard.
+    if (ev.key === "start" && ev.action === "long") {
+        console.log("input start long, state " + state);
+        if (state === S_RIDING || state === S_PAUSED) finishRide();
         return;
     }
 

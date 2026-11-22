@@ -40,23 +40,26 @@ The difference between clock time and surf time is the time spent picking the ri
 3. **Rider is up: press START.** The clock runs, the front shows **SURF** in green.
 4. **Rider falls: press START.** The clock stops, the front shows **PAUSE** in yellow, the fall counter goes up (`F1`, `F2`, …).
 5. **Rider is back up: press START** again to continue the same ride.
-6. **Ride is over: press OK.** The ride is saved and the clock goes back to `READY` for the next rider.
+6. **Ride is over: hold START** (about a second). The ride is saved and the clock goes back to `READY` for the next rider.
+   The usual way is: rider falls → press START (pause) → if the ride is over, hold START.
    If you finish while paused, that last pause is counted as the end of the ride, not as a fall,
    and the clock time ends at the moment you paused.
 7. Repeat 3–6 for every rider.
-8. **End the session:** press **BACK** while `READY`, or **hold OK** at any time.
-   (Holding OK during a ride saves that ride first.)
+8. **End the session:** press **BACK** while `READY`.
 9. **Leave the app:** press **BACK** on the start screen.
+
+You never need OK. It still works as a second way to finish a ride (press) or end the session (hold),
+but see *Troubleshooting* if the bar is connected to Home Assistant.
 
 ### All buttons by screen
 
-| Screen | START | OK | Hold OK | BACK | Wheel |
+| Screen | START | Hold START | BACK | Wheel | OK (optional) |
 |---|---|---|---|---|---|
-| Start screen | start session | open history | – | quit app | open history |
-| READY | start ride | open history | end session | end session | open history |
-| SURF (riding) | pause (fall) | finish & save ride | save ride, end session | *ignored* | *ignored* |
-| PAUSE | resume | finish & save ride | save ride, end session | *ignored* | *ignored* |
-| History | close history, start ride | close history | close history | close history | scroll |
+| Start screen | start session | – | quit app | open history | open history |
+| READY | start ride | – | end session | open history | open history; hold: end session |
+| SURF (riding) | pause (fall) | **finish & save ride** | *ignored* | *ignored* | finish & save ride |
+| PAUSE | resume | **finish & save ride** | *ignored* | *ignored* | finish & save ride |
+| History | close history, start ride | – | close history | scroll | close history |
 
 BACK and the wheel do nothing while a ride is running, so the clock can't be lost by a stray press.
 Rides shorter than 2 seconds are ignored (accidental double press).
@@ -81,7 +84,7 @@ Holding BACK always force-quits the app (built into the bar); a running ride is 
 
 ### History
 
-Turn the wheel (or press OK on `READY`) to open the history.
+Turn the wheel on the start screen or on `READY` to open the history.
 
 - **Front:** surf time of the selected ride, date on top, start time below.
 - **Back:** table of 5 rides around the selection: `RIDE  DATE START  SURF  CLOCK  F`.
@@ -93,7 +96,7 @@ Turn the wheel (or press OK on `READY`) to open the history.
 Rides #8 and older were recorded with version 1.0, so they have no date.
 The icons on the right edge belong to the bar itself.*
 
-Turn the wheel to scroll, press OK or BACK to close.
+Turn the wheel to scroll, press BACK to close.
 Rides recorded with version 1.0 have no date and show `--/-- --:--`.
 
 ### Status light
@@ -107,6 +110,24 @@ The start time comes from the bar's own clock (synced over Wi-Fi, time zone set 
 If the bar's clock is wrong, the ride times are still right but the date/start is off.
 
 ---
+
+## Troubleshooting
+
+**Pressing OK shows a house / "Home Assistant" screen.**
+That screen comes from the *BUSY Bar* integration in Home Assistant, not from this app.
+It reacts to the bar's OK button and draws its dashboard with display priority 100, covering the timer.
+The timer keeps running underneath and the ride is still saved. Press BACK to close that screen.
+That's why the app uses **hold START** to finish a ride: you never need to press OK.
+It only happens while the bar can reach Home Assistant (home Wi-Fi), so not on the boat.
+While that screen is open, the wheel controls the Home Assistant accessory shown on it.
+
+**Reading the bar's log** (over USB):
+
+```powershell
+Invoke-RestMethod -Method Post "http://10.0.4.20/api/log_dump?filename=log"
+```
+
+Then download `/ext/log.txt` with `storage/read` (same as the history file below).
 
 ## Install / update
 
@@ -175,7 +196,7 @@ The pixel maps live in [tools/make-icons.ps1](tools/make-icons.ps1). To change t
 
 ```
 src/app.wakesurf.timer/
-  appmeta/manifest.json    app id, name, version (1.2.0)
+  appmeta/manifest.json    app id, name, version (1.3.0)
   appmeta/icon_front_8x8.png    app icon, front display / app menu
   appmeta/icon_back_11x11.png   app icon, back display
   scripts/main.js          the whole app (plain JavaScript, runs on the bar's JerryScript engine)
