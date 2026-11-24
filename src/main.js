@@ -319,6 +319,7 @@ function buildHistory() {
 var drawing = false;
 var drawPending = false;
 var pendingLed = null;
+var shownIds = {};         // element ids currently on screen (id -> true)
 
 function render(ledColor) {
     if (ledColor) pendingLed = ledColor;
@@ -333,8 +334,17 @@ function render(ledColor) {
     else if (state === S_IDLE) elements = buildIdle();
     else elements = buildSession();
 
-    // a draw POST replaces everything this app had on screen, so elements of the
-    // previous view disappear without a separate DELETE
+    // A draw POST only adds or updates elements by id; elements of the previous view
+    // with other ids stay on screen (firmware 27.15). So after drawing, delete the ids
+    // that the new view no longer uses. Deleting after the POST avoids a blank flash.
+    var ids = {};
+    for (var i = 0; i < elements.length; i++) ids[elements[i].id] = true;
+    var stale = [];
+    for (var id in shownIds) {
+        if (!ids[id]) stale.push(id);
+    }
+    shownIds = ids;
+
     var payload = { application_name: APP, elements: elements };
     if (pendingLed) {
         payload.led_notification_color = pendingLed;
@@ -343,6 +353,16 @@ function render(ledColor) {
 
     api("display/draw", { method: "POST", body: JSON.stringify(payload) }).then(function (res) {
         if (!res.ok) console.log("draw failed: " + res.status + " " + res.text);
+        if (!stale.length) return res;
+        // application_name goes in the body only: the firmware rejects it in both places
+        return api("display/draw", {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ application_name: APP, element_ids: stale })
+        }).then(function (del) {
+            if (!del.ok) console.log("delete failed: " + del.status + " " + del.text);
+        });
+    }).then(function () {
         drawing = false;
         if (drawPending) {
             drawPending = false;

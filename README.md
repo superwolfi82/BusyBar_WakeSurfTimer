@@ -96,9 +96,8 @@ Turn the wheel on the start screen or on `READY` to open the history.
 
 ![Back display: ride history table](docs/screenshots/back-history.png)
 
-*Ride #10 started on 11/22 at 17:13: 9 s surfing, 12 s on the clock, 1 fall.
-Rides #8 and older were recorded with version 1.0, so they have no date.
-The icons on the right edge belong to the bar itself.*
+*Ride #8 (selected) started on 11/22 at 19:55: 12 s surfing, 16 s on the clock, 1 fall.
+`1/6` = first of 6 saved rides. The icons on the right edge belong to the bar itself.*
 
 Turn the wheel to scroll, press BACK to close.
 Rides recorded with version 1.0 have no date and show `--/-- --:--`.
